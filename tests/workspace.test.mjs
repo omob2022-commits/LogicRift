@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  createCode,
   createProject,
   demoProject,
+  newId,
   questionsFor,
   progress,
   invitationError,
@@ -29,6 +31,31 @@ test("invitation validation distinguishes missing, revoked, and expired codes", 
     invitationError({ ...p, expiresAt: new Date(0).toISOString() }),
     /انتهت/,
   );
+});
+
+test("generated ids and codes remain valid without crashing when crypto is unavailable", () => {
+  const originalCrypto = globalThis.crypto;
+  Object.defineProperty(globalThis, "crypto", {
+    value: undefined,
+    configurable: true,
+    writable: true,
+  });
+
+  try {
+    const id = newId();
+    const code = createCode();
+    assert.match(
+      id,
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    assert.match(code, /^LR-[A-Z0-9]{8}$/);
+  } finally {
+    Object.defineProperty(globalThis, "crypto", {
+      value: originalCrypto,
+      configurable: true,
+      writable: true,
+    });
+  }
 });
 test("payment follow-up appears only when relevant and counts toward completion", () => {
   const p = project();

@@ -149,18 +149,31 @@ export function invitationError(
     return "انتهت صلاحية الدعوة. اطلب من الشركة تجديدها.";
   return null;
 }
-// getRandomValues also works on local HTTP previews; randomUUID requires HTTPS.
+// getRandomValues works on local HTTP previews; fall back to Math.random if the
+// runtime does not expose Web Crypto so state creation never crashes the app.
 export function newId() {
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  const bytes = new Uint8Array(16);
+  const cryptoApi = globalThis.crypto;
+
+  if (cryptoApi && typeof cryptoApi.getRandomValues === "function") {
+    cryptoApi.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytes.length; i += 1) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+
   bytes[6] = (bytes[6] & 15) | 64;
   bytes[8] = (bytes[8] & 63) | 128;
+
   const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
     "",
   );
+
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 export function createCode() {
-  return "LR-" + newId().replace(/-/g, "").slice(0, 8).toUpperCase();
+  return `LR-${newId().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
 }
 export function createProject(
   ownerId: string,
